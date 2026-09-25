@@ -146,6 +146,175 @@ Use the exact names created by the repository’s selected integration. For exam
 
 Do not copy command spelling from another IDE or agent without checking the installed files.
 
+### Angular skills with OpenSpec or GitHub Spec Kit
+
+The [official Angular skills](https://github.com/angular/skills) complement a
+specification framework; they do not replace it. The framework skill owns the
+change lifecycle and artifacts, while `angular-developer` supplies
+Angular-specific implementation guidance. Use the Angular skill during planning
+and implementation, but keep the feature's scope, acceptance criteria, and task
+status in **either** OpenSpec **or** Spec Kit. Never use both frameworks to
+manage the same active feature.
+
+The Angular repository currently provides these skills:
+
+- `angular-developer` for Angular architecture, implementation, testing,
+  accessibility, routing, forms, signals, HTTP, and CLI guidance.
+- `angular-new-app` for creating a modern Angular application with the Angular
+  CLI.
+
+Install the skills at project scope from the repository root. Do not add `-g`:
+the team should commit project skills so every collaborator uses the same
+guidance.
+
+#### GitHub Copilot
+
+Install the Angular skills for GitHub Copilot:
+
+```bash
+npx skills add https://github.com/angular/skills \
+  --agent github-copilot \
+  --skill '*' \
+  --yes
+```
+
+This command installs `angular-*` skills under `.agents/skills/`. GitHub
+Copilot loads project skills from `.github/skills/`, `.agents/skills/`, and
+`.claude/skills/`, so it can use the Angular skills alongside framework skills
+that OpenSpec or Spec Kit generates in `.github/skills/`. See [GitHub Copilot
+agent skills](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills)
+for the supported locations and skill format.
+
+Choose one specification framework and initialize its Copilot integration once:
+
+```bash
+# OpenSpec
+openspec init --tools github-copilot
+
+# GitHub Spec Kit, in Copilot skills mode, on macOS or Linux
+specify init --here --force --integration copilot \
+  --integration-options="--skills" --script sh
+```
+
+For the Spec Kit command, use `--script ps` on Windows. `--force` is only for
+initializing or recovering an existing, non-empty repository after its current
+work has been committed or otherwise protected; do not run it as routine
+project setup.
+
+Expected project layout:
+
+```text
+.agents/skills/angular-developer/SKILL.md
+.agents/skills/angular-new-app/SKILL.md
+.github/skills/openspec-*/SKILL.md     # when using OpenSpec
+.github/skills/speckit-*/SKILL.md      # when using Spec Kit in skills mode
+```
+
+Example OpenSpec flow in Copilot:
+
+```text
+/opsx-propose Add an accessible Angular account-preferences page. Use the
+angular-developer skill for the Angular design and implementation guidance.
+
+# Review the generated proposal, specs, design, and tasks first.
+
+/opsx-apply-change add-account-preferences
+Use angular-developer. Implement only the approved unchecked tasks and run the
+repository's Angular quality gates.
+```
+
+Example Spec Kit flow in Copilot:
+
+```text
+/speckit-specify Add an accessible Angular account-preferences page. Use the
+angular-developer skill for Angular-specific guidance.
+
+/speckit-plan Use angular-developer and the repository's established patterns.
+/speckit-tasks
+
+# Review the artifacts before implementation.
+
+/speckit-implement Use angular-developer. Implement only the approved tasks
+and run the repository's Angular quality gates.
+/speckit-converge
+```
+
+OpenSpec writes Copilot prompt files as `opsx-*`; Spec Kit's Copilot skills mode
+uses `speckit-*`. If a command is not shown by the installed Copilot client,
+inspect `.github/prompts/` or `.github/skills/` and use the generated name. A
+new Copilot session discovers project skills automatically; reload skills or
+restart the client when its documentation requires it.
+
+#### Codex
+
+Install the same Angular skills for Codex:
+
+```bash
+npx skills add https://github.com/angular/skills \
+  --agent codex \
+  --skill '*' \
+  --yes
+```
+
+For Codex, the project skill directory is `.agents/skills/`. It is also the
+directory used by OpenSpec and Spec Kit's Codex integrations, so all relevant
+skills share one tree:
+
+```text
+.agents/skills/angular-developer/SKILL.md
+.agents/skills/angular-new-app/SKILL.md
+.agents/skills/openspec-*/SKILL.md     # when using OpenSpec
+.agents/skills/speckit-*/SKILL.md      # when using Spec Kit
+```
+
+Initialize the selected framework for Codex once:
+
+```bash
+# OpenSpec
+openspec init --tools codex
+
+# GitHub Spec Kit, in an existing repository on macOS or Linux
+specify init --here --force --integration codex --script sh
+```
+
+Example OpenSpec flow in Codex:
+
+```text
+$openspec-propose Add an accessible Angular account-preferences page. Use the
+angular-developer skill for Angular-specific guidance.
+
+# Review the generated artifacts before continuing.
+
+$openspec-apply-change add-account-preferences
+Use angular-developer. Implement only approved unchecked tasks and run the
+repository's Angular quality gates.
+```
+
+Example Spec Kit flow in Codex:
+
+```text
+$speckit-specify Add an accessible Angular account-preferences page. Use the
+angular-developer skill.
+$speckit-plan Use angular-developer and existing repository patterns.
+$speckit-tasks
+
+# Review the artifacts before continuing.
+
+$speckit-implement Use angular-developer. Implement only approved tasks and
+run the repository's Angular quality gates.
+$speckit-converge
+```
+
+Verify either installation before beginning work:
+
+```bash
+find .agents/skills .github/skills -maxdepth 2 -name SKILL.md -print 2>/dev/null | sort
+```
+
+The command should show `angular-*` and only the selected framework's skills.
+OpenSpec manages only its `openspec-*` directories, and framework updates must
+not be used to overwrite the Angular skill directories.
+
 ### Rule ownership and authority
 
 Do not copy the same instruction into every artifact. Give each type of information one authoritative home:
@@ -310,7 +479,12 @@ OpenSpec currently requires Node.js 20.19.0 or newer. Follow the
 ```bash
 npm install -g @fission-ai/openspec@latest
 openspec --version
-openspec init
+
+# Select the coding-agent integration used by this repository.
+openspec init --tools github-copilot
+
+# Or, for a Codex repository:
+openspec init --tools codex
 ```
 
 The `@latest` command is appropriate for evaluating the current release. For repeatable team onboarding and CI, record and install an approved version, assign an update owner, and review generated workflow changes before adopting an upgrade.
@@ -407,14 +581,20 @@ specify version
 
 For repeatable team environments, pin the approved Spec Kit release through the team's chosen installation mechanism. Upgrade the CLI and generated integration files in a dedicated, reviewed change.
 
-For an existing repository, first commit or otherwise protect current work, then initialize for the team’s coding agent:
+For an existing repository, first commit or otherwise protect current work, then initialize for the team’s coding agent. The following examples use skills-based integrations for GitHub Copilot and Codex:
 
 ```bash
-specify init --here --force --integration <agent-key>
+# GitHub Copilot on macOS or Linux
+specify init --here --force --integration copilot \
+  --integration-options="--skills" --script sh
+
+# Codex on macOS or Linux
+specify init --here --force --integration codex --script sh
 ```
 
 Review and commit `.specify/`, the integration’s generated skills or commands, and related configuration. Use the
 [existing-project guidance](https://github.github.com/spec-kit/guides/existing-projects.html) before adopting Spec Kit in a mature codebase.
+Use `--script ps` on Windows. `--force` acknowledges the merge warning in a non-empty directory; it is not a routine update command. See [Angular skills with OpenSpec or GitHub Spec Kit](#angular-skills-with-openspec-or-github-spec-kit) for the matching Angular-skill installation and invocation examples.
 
 ### Establish the constitution
 
@@ -474,11 +654,14 @@ Always inspect `package.json`, `angular.json`, `tsconfig*.json`, lint configurat
 
 ### Angular agent tooling
 
-The Angular team publishes official Agent Skills. Where the selected coding agent supports skills, install or synchronize them using the repository's approved dependency/update process. A common installation command is:
-
-```bash
-npx skills add https://github.com/angular/skills
-```
+The Angular team publishes [official Agent Skills](https://github.com/angular/skills).
+Where the selected coding agent supports skills, install or synchronize them
+using the repository's approved dependency/update process. For team-safe,
+agent-specific commands and end-to-end OpenSpec and Spec Kit examples for
+GitHub Copilot and Codex, see [Angular skills with OpenSpec or GitHub Spec
+Kit](#angular-skills-with-openspec-or-github-spec-kit). In particular, pass
+`--agent github-copilot` or `--agent codex` instead of relying on an interactive
+target selection.
 
 The general-purpose `angular-developer` skill covers modern Angular architecture and APIs. Combine it with small company-specific skills rather than copying Angular documentation into a large custom skill.
 
