@@ -7,6 +7,8 @@
 > - **Audience:** Developers, tech leads, reviewers, and AI-coding-agent users
 > - **Applies to:** Angular, .NET, and Angular + .NET repositories
 > - **Last verified:** 2026-09-25
+> - **Owner:** The team or engineering-governance group named by each adopting repository
+> - **Review cadence:** Quarterly and after material OpenSpec, Spec Kit, Angular, or .NET workflow changes
 
 This guide defines a shared team approach for repositories that use either
 [OpenSpec](https://openspec.dev/) or
@@ -16,9 +18,47 @@ The name **OpenSpec** is used throughout this document; “OpecSpec” is treate
 
 ---
 
+## Operating model
+
+Treat AI-assisted development as a set of cooperating layers. Each layer has a distinct responsibility and should have one clear source of truth.
+
+```text
+Business requirement
+        |
+        v
+Specification framework
+(OpenSpec or GitHub Spec Kit)
+        |
+        v
+Repository policy and feature artifacts
+        |
+        v
+Framework and company skills
+        |
+        v
+Coding agent and development tools
+        |
+        v
+Build, test, verification, CI, and human review
+```
+
+| Layer | Responsibility |
+| --- | --- |
+| Specification framework | Defines the lifecycle for deciding what to build and why |
+| Repository policy | Defines non-negotiable engineering and operational constraints |
+| Feature artifacts | Define accepted behavior, design decisions, tasks, and evidence |
+| Skills | Supply focused, reusable implementation or review expertise |
+| Coding agent | Analyzes, plans, implements, and reports evidence within the approved boundaries |
+| Tooling | Inspects and operates the workspace through repository scripts, CLIs, or MCP servers |
+| Verification | Demonstrates that the implementation satisfies the specification and repository policy |
+
+Specifications tell the agent what must be true. Repository policy states what must not be violated. Skills teach specialized procedures. Tools let the agent act. Automated evidence and human review determine whether the result is acceptable.
+
+---
+
 ## 1. Team policy
 
-1. **Use one spec framework per repository.** Do not run OpenSpec and Spec Kit for the same active feature. A deliberate, documented migration is the only exception.
+1. **Use one authoritative spec framework per bounded project.** A monorepo may contain independently governed projects, but the same active feature must never be managed by both OpenSpec and Spec Kit. A deliberate, documented migration is the only exception.
 2. **Keep specifications with the code.** Commit framework configuration, generated workflow skills, specifications, plans, tasks, and relevant code in version control.
 3. **Treat approved artifacts as the source of intent.** Chat history is not a durable decision record.
 4. **Separate requirements from implementation.** Define what and why first. Put Angular, .NET, database, and infrastructure decisions in the technical plan or design.
@@ -40,6 +80,20 @@ Every repository should state its selected framework in `README.md` or `CONTRIBU
 - Required workflow: short | full/production
 - Required approvers: <roles or CODEOWNERS groups>
 ```
+
+For a monorepo containing independently governed applications or services, make the declaration in each project root and document how cross-project features choose one coordinating source of truth.
+
+### Workflow proportional to risk
+
+The artifact depth and review gates should match the risk of the change:
+
+| Level | Typical work | Minimum workflow |
+| --- | --- | --- |
+| Light | Documentation, internal refactoring, or a small reversible bug fix with no contract or data impact | Brief accepted behavior, scoped plan/tasks, relevant checks, and implementation verification |
+| Standard | Normal product behavior or a contained Angular/.NET feature | Specification, plan, tasks, implementation, convergence/verification, and PR evidence |
+| High risk | Security, authorization, payments, public contracts, regulated data, migrations, concurrency, or major architecture | Full workflow with clarification, threat/data/compatibility review, explicit rollout and recovery, required approvers, and complete evidence |
+
+Skipping an artifact because it is genuinely unnecessary is acceptable only when the reason is recorded. Do not classify work as light merely to bypass a required review.
 
 ---
 
@@ -92,6 +146,34 @@ Use the exact names created by the repository’s selected integration. For exam
 
 Do not copy command spelling from another IDE or agent without checking the installed files.
 
+### Rule ownership and authority
+
+Do not copy the same instruction into every artifact. Give each type of information one authoritative home:
+
+| Information | Authoritative location |
+| --- | --- |
+| Agent behavior that applies to nearly every change | `AGENTS.md` or the repository's equivalent instruction file |
+| Non-negotiable engineering principles | Spec Kit constitution or reviewed repository policy |
+| OpenSpec-wide planning and artifact rules | `openspec/config.yaml` |
+| Feature behavior, scope, and acceptance scenarios | Active feature specification |
+| Architecture and implementation choices | Reviewed design or technical plan |
+| Reusable specialized procedure | Focused framework or company skill |
+| Mechanically enforceable requirement | Repository scripts and CI configuration |
+
+Examples of repository-wide rules include keeping API contracts separate from persistence entities, preserving nullable-reference-type safety, keeping reusable business logic outside presentation components, and requiring tests for new production behavior. Skills should explain specialized procedures such as migration review, observability design, or use of a company design system; they should not duplicate the entire constitution.
+
+When instructions conflict, use this precedence unless an approved governance process states otherwise:
+
+1. Legal, security, privacy, and compliance obligations
+2. Repository constitution and mandatory policy
+3. Approved active feature specification
+4. Approved technical plan or design
+5. Established repository architecture and conventions
+6. Framework and company skills
+7. General model knowledge
+
+A lower-level artifact must not silently override a higher-level one. If an approved feature needs an exception to repository policy or architecture, record and approve that exception in the owning artifact before implementation continues.
+
 ### Custom stack skills
 
 Framework skills manage the specification lifecycle. Small project skills can complement them with stack-specific procedures, for example:
@@ -112,6 +194,8 @@ A good custom skill should:
 7. Avoid repeating or contradicting the OpenSpec configuration or Spec Kit constitution.
 
 Place skills in the directory expected by the selected agent integration. Examples include `.agents/skills/`, `.github/skills/`, and `.claude/skills/`. Prefer one canonical source plus an installation/synchronization mechanism if the team supports multiple agents.
+
+Avoid skill explosion. Prefer coherent capabilities such as `company-angular`, `company-dotnet`, `company-api-contracts`, and `testing-strategy` over tiny skills such as `use-async`, `angular-signals`, or `controller-dto`. A skill should be easy for an agent to discover and for a human owner to maintain.
 
 ---
 
@@ -199,6 +283,21 @@ A feature is done when:
 - Documentation and telemetry are updated.
 - OpenSpec changes are verified and archived, or Spec Kit convergence reports no remaining gaps.
 
+### Agent implementation discipline
+
+Before editing, the agent should inspect the active SDD artifacts, repository instructions, manifests and project files, analyzer and formatter configuration, neighboring implementation, existing tests, and the current working-tree state. It must preserve unrelated work and follow the architecture actually present in the repository.
+
+During implementation, prefer a small coherent change followed by the relevant build or test over generating a large batch of files and verifying only at the end. If implementation evidence invalidates an accepted requirement or design decision, pause that portion of the work and update the owning artifact through the normal review process.
+
+Before declaring completion, report:
+
+- Files and subsystems changed
+- Requirements and scenarios implemented
+- Tests added or updated
+- Build, test, lint, analyzer, and other quality-gate results
+- Known limitations and accepted deviations
+- Remaining specification, implementation, or operational gaps
+
 ---
 
 ## 6. OpenSpec workflow
@@ -213,6 +312,8 @@ npm install -g @fission-ai/openspec@latest
 openspec --version
 openspec init
 ```
+
+The `@latest` command is appropriate for evaluating the current release. For repeatable team onboarding and CI, record and install an approved version, assign an update owner, and review generated workflow changes before adopting an upgrade.
 
 Commit `openspec/` and the generated workflow files. Restart the coding agent if the skills are not discovered.
 
@@ -304,6 +405,8 @@ uv tool install specify-cli
 specify version
 ```
 
+For repeatable team environments, pin the approved Spec Kit release through the team's chosen installation mechanism. Upgrade the CLI and generated integration files in a dedicated, reviewed change.
+
 For an existing repository, first commit or otherwise protect current work, then initialize for the team’s coding agent:
 
 ```bash
@@ -368,6 +471,30 @@ Spec Kit resolves the active feature from `.specify/feature.json` unless `SPECIF
 ## 8. Angular best practices for specs and plans
 
 Always inspect `package.json`, `angular.json`, `tsconfig*.json`, lint configuration, test setup, and existing feature patterns first. The repository’s supported Angular version and architecture take precedence over generic advice.
+
+### Angular agent tooling
+
+The Angular team publishes official Agent Skills. Where the selected coding agent supports skills, install or synchronize them using the repository's approved dependency/update process. A common installation command is:
+
+```bash
+npx skills add https://github.com/angular/skills
+```
+
+The general-purpose `angular-developer` skill covers modern Angular architecture and APIs. Combine it with small company-specific skills rather than copying Angular documentation into a large custom skill.
+
+On Angular CLI versions that provide the schematic, generate agent-specific instructions and configuration with:
+
+```bash
+ng generate ai-config
+```
+
+The Angular CLI also provides an MCP server for supported agent hosts:
+
+```bash
+npx @angular/cli mcp
+```
+
+Skills provide framework guidance; the CLI or MCP server provides workspace inspection and execution tools. Neither replaces repository review, tests, CI, or explicit approval for architectural changes.
 
 ### Angular requirements should cover
 
@@ -515,6 +642,8 @@ The Angular and .NET tasks must reference the same contract. Do not allow each s
 
 ## 11. Pull request expectations
 
+Treat CI as part of the agent harness, not as a final administrative step. Important instructions should be backed by automated checks wherever practical: Angular formatting/linting/tests/builds, .NET formatting/analyzers/tests/builds, specification validation, contract checks, and security or dependency checks. Human review remains mandatory for correctness, architecture, risk, and judgment that automation cannot establish.
+
 Use this summary in feature PRs:
 
 ```md
@@ -659,7 +788,69 @@ completion while unexplained gaps remain.
 
 ---
 
-## 15. Official references
+## 15. Repository and CI baseline
+
+Use the structure generated by the selected framework and agent integration. A representative combined repository looks like:
+
+```text
+repo/
+├── AGENTS.md
+├── README.md or CONTRIBUTING.md
+├── openspec/                    # OpenSpec
+│   ├── config.yaml
+│   ├── specs/
+│   └── changes/
+├── .specify/                    # Spec Kit alternative
+├── specs/                       # Spec Kit feature artifacts
+├── .agents/skills/              # when supported by the agent
+├── src/
+├── tests/
+└── CI configuration
+```
+
+The OpenSpec and Spec Kit paths in this example are alternatives for one bounded project, not a recommendation to initialize both. Exact generated directories differ by tool version and integration; preserve the installed tool's structure instead of forcing the example manually.
+
+### Minimal repository-agent baseline
+
+A repository instruction file should remain concise and enforce durable behavior. Adapt this baseline rather than copying framework tutorials into it:
+
+```md
+# Repository engineering rules
+
+- Preserve the existing architecture unless an approved specification and design change it.
+- Prefer small, reviewable changes.
+- Do not introduce frameworks or dependencies without justification and review.
+- Do not edit generated files when a supported generator or source artifact owns them.
+- Do not weaken, skip, or remove tests merely to make a change pass.
+- Do not remove validation, authorization, logging, observability, or error handling without an explicit requirement.
+- Preserve unrelated working-tree changes.
+
+Before completing work:
+
+- Verify the implementation against the active feature artifacts.
+- Build the affected projects.
+- Run the relevant automated tests.
+- Run formatting, linting, analyzers, and repository-specific checks.
+- Report evidence, limitations, deviations, and remaining gaps.
+```
+
+### CI expectations
+
+At minimum, CI should run the repository-equivalent checks for the affected stack:
+
+| Area | Typical checks |
+| --- | --- |
+| Specification | Artifact structure, links/traceability, and `openspec validate` where applicable |
+| Angular | Lockfile install, formatting, linting, tests, production build, bundle budgets, and critical e2e/a11y checks |
+| .NET | Restore, formatting/analyzers, build, unit/integration tests, migration review checks, and architecture rules where policy requires them |
+| Contracts | OpenAPI/event-schema compatibility and client/server contract tests |
+| Security | Dependency, secret, static-analysis, authorization, and policy-required scans |
+
+Do not claim that CI proves complete feature correctness. It supplies repeatable evidence; convergence/verification and human review still compare the delivered behavior with the accepted intent.
+
+---
+
+## 16. Official references
 
 ### OpenSpec
 
@@ -678,11 +869,15 @@ completion while unexplained gaps remain.
 - [Agentic SDD command reference](https://github.github.com/spec-kit/reference/agentic-sdd.html)
 - [Agent integrations](https://github.com/github/spec-kit/blob/main/docs/reference/integrations.md)
 - [Adopting an existing codebase](https://github.github.com/spec-kit/guides/existing-projects.html)
+- [Using Spec Kit in a monorepo](https://github.github.com/spec-kit/guides/monorepo.html)
 - [Customization](https://github.github.com/spec-kit/guides/customization.html)
 - [Handling complex features](https://github.github.com/spec-kit/concepts/complex-features.html)
 
 ### Angular
 
+- [Angular Agent Skills](https://angular.dev/ai/agent-skills)
+- [Angular CLI MCP server](https://angular.dev/ai/mcp)
+- [Angular AI configuration schematic](https://angular.dev/cli/generate/ai-config)
 - [Angular style guide](https://angular.dev/style-guide)
 - [Performance practices](https://angular.dev/best-practices/performance)
 - [Security practices](https://angular.dev/best-practices/security)
@@ -691,9 +886,11 @@ completion while unexplained gaps remain.
 
 ### .NET
 
+- [C# coding conventions](https://learn.microsoft.com/dotnet/csharp/fundamentals/coding-style/coding-conventions)
 - [.NET dependency injection guidelines](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection/guidelines)
 - [.NET options pattern](https://learn.microsoft.com/dotnet/core/extensions/options)
 - [C# nullable reference types](https://learn.microsoft.com/dotnet/csharp/nullable-references)
+- [ASP.NET Core web APIs](https://learn.microsoft.com/aspnet/core/web-api/)
 - [ASP.NET Core integration tests](https://learn.microsoft.com/aspnet/core/test/integration-tests)
 - [ASP.NET Core API error handling](https://learn.microsoft.com/aspnet/core/fundamentals/error-handling-api)
 - [EF Core efficient querying](https://learn.microsoft.com/ef/core/performance/efficient-querying)
